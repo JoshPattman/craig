@@ -1,0 +1,14 @@
+
+services:
+  craig:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: craig:latest
+    container_name: craig
+    restart: unless-stopped
+    environment:
+      - OPENAI_KEY=${OPENAI_KEY}
+      - CRAIG_DISCORD_TOKEN=${CRAIG_DISCORD_TOKEN}
+    volumes:
+      - ${HOME}/craig-data:/craig-data
