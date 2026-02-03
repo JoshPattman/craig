@@ -3,8 +3,8 @@ module craig
 go 1.25.5
 
 require (
-	github.com/JoshPattman/jpf v0.9.0-beta.4
-	github.com/JoshPattman/react v0.0.2
+	github.com/JoshPattman/jpf v0.9.0
+	github.com/JoshPattman/react v0.0.3
 	github.com/bwmarrin/discordgo v0.29.0
 	github.com/invopop/jsonschema v0.13.0
 )
