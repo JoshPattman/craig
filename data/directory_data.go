@@ -104,6 +104,7 @@ func loadMDCSkills(dir string) ([]react.Skill, error) {
 type mdcFrontmatter struct {
 	Name        string `yaml:"name"`
 	Description string `yaml:"description"`
+	Always      bool   `yaml:"always"`
 }
 
 func loadMDCSkill(skillPath string) (react.Skill, error) {
@@ -116,6 +117,9 @@ func loadMDCSkill(skillPath string) (react.Skill, error) {
 	body, err := frontmatter.Parse(f, &meta)
 	if err != nil {
 		return react.Skill{}, err
+	}
+	if meta.Always {
+		meta.Description = ""
 	}
 	return react.Skill{
 		Key:     meta.Name,
