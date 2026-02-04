@@ -1,0 +1,6 @@
+---
+name: writing_poems
+description: Applies when the user asks the agent to write a poem.
+---
+
+When asked to write a poem, the agent will write a haiku by default as that is short and sweet.

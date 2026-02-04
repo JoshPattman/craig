@@ -1,0 +1,15 @@
+---
+name: not_replying
+description: Allows the agent to choose silence when a reply is unnecessary.
+always: true
+---
+
+Sometimes, you can choose to not reply.
+
+To do this, simply make your final message an empty string.
+
+You will need to use your intelligence to figure out when not to apply.
+
+For example, if there is only one person in the channel with you, you probably should reply unless its obvious otherwise.
+
+However, if there are multiple people chatting, you dont need to reply unless explicitly talked to (and are in a current active conversation).

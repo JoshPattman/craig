@@ -9,6 +9,8 @@ services:
     restart: unless-stopped
     environment:
       - OPENAI_KEY=${OPENAI_KEY}
+      - GEMINI_KEY=${GEMINI_KEY}
       - CRAIG_DISCORD_TOKEN=${CRAIG_DISCORD_TOKEN}
+      - CRAIG_INIT=${CRAIG_INIT}
     volumes:
       - ${HOME}/craig-data:/craig-data

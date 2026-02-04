@@ -4,45 +4,40 @@ import (
 	"fmt"
 
 	"craig/ai/tools"
+	"craig/data"
 
 	"github.com/JoshPattman/react"
 )
 
-func NewAgentBuilder(modelBuilder react.ModelBuilder, pad *tools.ScratchPad) *AgentBuilder {
+func NewAgentBuilder(modelBuilder react.ModelBuilder, pad data.ScratchPad, skillset data.Skillset) *AgentBuilder {
 	return &AgentBuilder{
 		modelBuilder: modelBuilder,
 		pad:          pad,
+		skillset:     skillset,
 	}
 }
 
 type AgentBuilder struct {
 	modelBuilder react.ModelBuilder
-	pad          *tools.ScratchPad
+	pad          data.ScratchPad
+	skillset     data.Skillset
 }
 
-func getFragments() []react.PromptFragment {
-	return []react.PromptFragment{
-		{
-			Key:     "scratch_pad_info",
-			Content: "The scratch pad is a block of text, private to you, which you can read and rewrite at will. You should **always** read the scratch pad at the start of a conversation, but you may also read it again through the conversation if you feel you need to (you usually only need to read it once though). The scratch pad will persist across conversations, so you should use it to store information that you deem useful in future conversations. Don't use it to store silly trivial things, but instead things that you think would be useful for you or the user to remember (for example, does a user want you to call them a different name, what are their preferences). While writing to the scratchpad, remember that you may talk to multiple users, so you may at some point need to organise findings by user. There is no format you need to abide by for the scratchpad, use whatever format you like.",
-		},
-		{
-			Key:     "not_replying",
-			Content: "Sometimes, you can choose to not reply. To do this, simply make your final message an empty string. You will need to use your intelligence to figure out when not to apply. For example, if there is only one person in the channel with you, you probably should reply unless its obvious otherwise. However, if there are multiple people chatting, you dont need to reply unless explicitly talked to (and are in a current active conversation).",
-		},
+func (ab *AgentBuilder) BuildNew() (*AgentRuntime, error) {
+	skills, err := ab.skillset.List()
+	if err != nil {
+		return nil, err
 	}
-}
 
-func (ab *AgentBuilder) BuildNew() *AgentRuntime {
 	agent := react.NewCraig(
 		ab.modelBuilder,
 		react.WithCraigTools(tools.NewTimeTool(), tools.NewReadScratchPadTool(ab.pad), tools.NewRewriteScratchPadTool(ab.pad)),
-		react.WithCraigFragments(getFragments()...),
+		react.WithCraigSkills(skills...),
 		react.WithCraigPersonality("You are Craig (Combined ReAct Intelligent aGent). You are an AI assistant, althout you act like a human. You are witty but not to an annoying degree, and a bit sarcastic. When talking to the user, you will be messaging over dicord, so dont use capitals or punctuation much (talk like a normal discord user would), and feel free to use slang if you need. Usually, your responses should be quite short (for normal conversation, maybe one sentence)."),
 	)
 	return &AgentRuntime{
 		agent: agent,
-	}
+	}, nil
 }
 
 type AgentRuntime struct {

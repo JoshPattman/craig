@@ -1,8 +1,10 @@
 package ai
 
 import (
+	"craig/data"
 	"encoding/json"
-	"time"
+	"fmt"
+	"log/slog"
 
 	"github.com/JoshPattman/react"
 
@@ -10,41 +12,96 @@ import (
 	"github.com/invopop/jsonschema"
 )
 
-func NewModelBuilder(apiKey string, model string) react.ModelBuilder {
+func NewModelBuilder(agentSetup, filterSetup data.ModelSetup, openAIKey, geminiKey string) react.ModelBuilder {
 	return &simpleAgentModelBuilder{
-		APIKey: apiKey,
-		Model:  model,
+		agentSetup, filterSetup, openAIKey, geminiKey,
 	}
 }
 
 type simpleAgentModelBuilder struct {
-	APIKey string
-	Model  string
+	agentSetup  data.ModelSetup
+	filterSetup data.ModelSetup
+	openAIKey   string
+	geminiKey   string
 }
 
-// BuildFragmentSelectorModel implements [react.ModelBuilder].
 func (m *simpleAgentModelBuilder) BuildFragmentSelectorModel(responseType any) jpf.Model {
-	return m.BuildAgentModel(responseType, nil, nil)
+	model, err := buildModel(m.filterSetup, m.openAIKey, m.geminiKey, responseType, nil, nil)
+	if err != nil {
+		panic(err)
+	}
+	return model
 }
 
 func (m *simpleAgentModelBuilder) BuildAgentModel(responseType any, onInitFinalStream func(), onDataFinalStream func(string)) jpf.Model {
-	var schema map[string]any
-	if responseType != nil {
-		var err error
-		schema, err = getSchema(responseType)
-		if err != nil {
-			panic(err)
-		}
+	model, err := buildModel(m.agentSetup, m.openAIKey, m.geminiKey, responseType, onInitFinalStream, onDataFinalStream)
+	if err != nil {
+		panic(err)
 	}
-	model := jpf.NewOpenAIModel(
-		m.APIKey,
-		m.Model,
-		jpf.WithJsonSchema{X: schema},
-		jpf.WithStreamResponse{OnBegin: onInitFinalStream, OnText: onDataFinalStream},
-	)
-	model = jpf.NewRetryModel(model, 5, jpf.WithDelay{X: time.Second})
-	//model = jpf.NewLoggingModel(model, jpf.NewSlogModelLogger(slog.Info, false))
 	return model
+}
+
+func buildModel(setup data.ModelSetup, openAIKey, geminiKey string, responseType any, onInitFinalStream func(), onDataFinalStream func(string)) (jpf.Model, error) {
+	var model jpf.Model
+	switch setup.Provider {
+	case "openai":
+		args := []jpf.OpenAIModelOpt{
+			jpf.WithURL{X: setup.URL},
+			jpf.WithStreamResponse{OnBegin: onInitFinalStream, OnText: onDataFinalStream},
+		}
+		if setup.Headers != nil {
+			for k, v := range setup.Headers {
+				args = append(args, jpf.WithHTTPHeader{K: k, V: v})
+			}
+		}
+		if responseType != nil {
+			schema, err := getSchema(responseType)
+			if err != nil {
+				panic(err)
+			}
+			args = append(args, jpf.WithJsonSchema{X: schema})
+		}
+		if setup.Temperature != nil {
+			args = append(args, jpf.WithTemperature{X: *setup.Temperature})
+		}
+		if setup.ReasoningEffort != nil {
+			var re jpf.ReasoningEffort
+			switch *setup.ReasoningEffort {
+			case "low":
+				re = jpf.LowReasoning
+			case "medium":
+				re = jpf.MediumReasoning
+			case "high":
+				re = jpf.HighReasoning
+			default:
+				return nil, fmt.Errorf("unrecognised reasoning effort '%s'", *setup.ReasoningEffort)
+			}
+			args = append(args, jpf.WithReasoningEffort{X: re})
+		}
+		model = jpf.NewOpenAIModel(openAIKey, setup.Name, args...)
+
+	case "gemini":
+		args := []jpf.GeminiModelOpt{
+			jpf.WithURL{X: setup.URL},
+			jpf.WithStreamResponse{OnBegin: onInitFinalStream, OnText: onDataFinalStream},
+		}
+		if setup.Headers != nil {
+			for k, v := range setup.Headers {
+				args = append(args, jpf.WithHTTPHeader{K: k, V: v})
+			}
+		}
+		if setup.Temperature != nil {
+			args = append(args, jpf.WithTemperature{X: *setup.Temperature})
+		}
+		model = jpf.NewGeminiModel(geminiKey, setup.Name, args...)
+	default:
+		return nil, fmt.Errorf("unrecognised provider '%s'", setup.Provider)
+	}
+	model = jpf.NewLoggingModel(model, jpf.NewSlogModelLogger(slog.Info, false))
+	if setup.Retries > 0 {
+		model = jpf.NewRetryModel(model, setup.Retries)
+	}
+	return model, nil
 }
 
 func getSchema(obj any) (map[string]any, error) {

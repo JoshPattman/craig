@@ -1,0 +1,9 @@
+{
+    "name": "gpt-4.1",
+    "url": "https://api.openai.com/v1/chat/completions",
+    "provider": "openai", 
+    "retries": 5,
+    "headers": {},
+    "temperature": null,
+    "reasoning_effort": null
+}
