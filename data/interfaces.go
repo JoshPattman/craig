@@ -32,3 +32,7 @@ type Models interface {
 	AgentModel() (ModelSetup, error)
 	FilterModel() (ModelSetup, error)
 }
+
+type Personality interface {
+	Personality() (string, error)
+}

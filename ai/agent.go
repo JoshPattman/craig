@@ -9,11 +9,12 @@ import (
 	"github.com/JoshPattman/react"
 )
 
-func NewAgentBuilder(modelBuilder react.ModelBuilder, pad data.ScratchPad, skillset data.Skillset) *AgentBuilder {
+func NewAgentBuilder(modelBuilder react.ModelBuilder, pad data.ScratchPad, skillset data.Skillset, personality data.Personality) *AgentBuilder {
 	return &AgentBuilder{
 		modelBuilder: modelBuilder,
 		pad:          pad,
 		skillset:     skillset,
+		personality:  personality,
 	}
 }
 
@@ -21,10 +22,15 @@ type AgentBuilder struct {
 	modelBuilder react.ModelBuilder
 	pad          data.ScratchPad
 	skillset     data.Skillset
+	personality  data.Personality
 }
 
 func (ab *AgentBuilder) BuildNew() (*AgentRuntime, error) {
 	skills, err := ab.skillset.List()
+	if err != nil {
+		return nil, err
+	}
+	personality, err := ab.personality.Personality()
 	if err != nil {
 		return nil, err
 	}
@@ -33,7 +39,7 @@ func (ab *AgentBuilder) BuildNew() (*AgentRuntime, error) {
 		ab.modelBuilder,
 		react.WithCraigTools(tools.NewTimeTool(), tools.NewReadScratchPadTool(ab.pad), tools.NewRewriteScratchPadTool(ab.pad)),
 		react.WithCraigSkills(skills...),
-		react.WithCraigPersonality("You are Craig (Combined ReAct Intelligent aGent). You are an AI assistant, althout you act like a human. You are witty but not to an annoying degree, and a bit sarcastic. When talking to the user, you will be messaging over dicord, so dont use capitals or punctuation much (talk like a normal discord user would), and feel free to use slang if you need. Usually, your responses should be quite short (for normal conversation, maybe one sentence)."),
+		react.WithCraigPersonality(personality),
 	)
 	return &AgentRuntime{
 		agent: agent,

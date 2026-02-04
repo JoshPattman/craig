@@ -166,6 +166,14 @@ func (dd *DirectoryData) FilterModel() (ModelSetup, error) {
 	return loadModelSetup(path.Join(dd.root, "models", "filter.json"))
 }
 
+func (dd *DirectoryData) Personality() (string, error) {
+	data, err := os.ReadFile(path.Join(dd.root, "personality.txt"))
+	if err != nil {
+		return "", err
+	}
+	return string(data), nil
+}
+
 func loadModelSetup(fp string) (ModelSetup, error) {
 	f, err := os.Open(fp)
 	if err != nil {
