@@ -36,3 +36,7 @@ type Models interface {
 type Personality interface {
 	Personality() (string, error)
 }
+
+type Tools interface {
+	EnabledTools() ([]react.Tool, error)
+}

@@ -2,6 +2,7 @@ package data
 
 import (
 	"encoding/json"
+	"fmt"
 	"io/fs"
 	"os"
 	"path"
@@ -190,4 +191,69 @@ func loadModelSetup(fp string) (ModelSetup, error) {
 		return ModelSetup{}, err
 	}
 	return result, nil
+}
+
+type mcpConfig struct {
+	URL     string            `json:"url"`
+	Headers map[string]string `json:"headers"`
+	Enabled bool              `json:"enabled"`
+}
+
+func (dd *DirectoryData) EnabledTools() ([]react.Tool, error) {
+	var allTools []react.Tool
+
+	// Directory where MCP configs live
+	configDir := filepath.Join(dd.root, "mcp")
+
+	entries, err := os.ReadDir(configDir)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read mcp directory: %w", err)
+	}
+
+	for _, entry := range entries {
+		if entry.IsDir() {
+			continue
+		}
+
+		// Only load .json files
+		if filepath.Ext(entry.Name()) != ".json" {
+			continue
+		}
+
+		path := filepath.Join(configDir, entry.Name())
+
+		// Read file
+		data, err := os.ReadFile(path)
+		if err != nil {
+			return nil, fmt.Errorf("failed to read %s: %w", path, err)
+		}
+
+		// Parse JSON config
+		var cfg mcpConfig
+		if err := json.Unmarshal(data, &cfg); err != nil {
+			return nil, fmt.Errorf("failed to parse %s: %w", path, err)
+		}
+
+		// Skip disabled servers
+		if !cfg.Enabled {
+			continue
+		}
+
+		// Connect MCP
+		mcp, err := connectMCP(cfg.URL, cfg.Headers)
+		if err != nil {
+			return nil, fmt.Errorf("failed to connect MCP %s: %w", cfg.URL, err)
+		}
+
+		// Convert MCP tools
+		mcpTools, err := createToolsFromMCP(mcp)
+		if err != nil {
+			return nil, fmt.Errorf("failed creating tools from MCP %s: %w", cfg.URL, err)
+		}
+
+		// Add to global list
+		allTools = append(allTools, mcpTools...)
+	}
+
+	return allTools, nil
 }

@@ -48,6 +48,7 @@ func NewApp(openAIKey, geminiKey string, logger *slog.Logger, dataLocation strin
 		dd.GetScratchPad(),
 		dd.GetSkillset(),
 		dd,
+		dd,
 	)
 
 	app := &App{

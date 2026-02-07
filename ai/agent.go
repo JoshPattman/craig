@@ -9,12 +9,13 @@ import (
 	"github.com/JoshPattman/react"
 )
 
-func NewAgentBuilder(modelBuilder react.ModelBuilder, pad data.ScratchPad, skillset data.Skillset, personality data.Personality) *AgentBuilder {
+func NewAgentBuilder(modelBuilder react.ModelBuilder, pad data.ScratchPad, skillset data.Skillset, personality data.Personality, tools data.Tools) *AgentBuilder {
 	return &AgentBuilder{
 		modelBuilder: modelBuilder,
 		pad:          pad,
 		skillset:     skillset,
 		personality:  personality,
+		tools:        tools,
 	}
 }
 
@@ -23,6 +24,7 @@ type AgentBuilder struct {
 	pad          data.ScratchPad
 	skillset     data.Skillset
 	personality  data.Personality
+	tools        data.Tools
 }
 
 func (ab *AgentBuilder) BuildNew() (*AgentRuntime, error) {
@@ -35,9 +37,15 @@ func (ab *AgentBuilder) BuildNew() (*AgentRuntime, error) {
 		return nil, err
 	}
 
+	confTools, err := ab.tools.EnabledTools()
+	if err != nil {
+		return nil, err
+	}
+
 	agent := react.NewCraig(
 		ab.modelBuilder,
 		react.WithCraigTools(tools.NewTimeTool(), tools.NewReadScratchPadTool(ab.pad), tools.NewRewriteScratchPadTool(ab.pad)),
+		react.WithCraigTools(confTools...),
 		react.WithCraigSkills(skills...),
 		react.WithCraigPersonality(personality),
 	)

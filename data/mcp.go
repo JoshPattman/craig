@@ -1,0 +1,109 @@
+package data
+
+import (
+	"context"
+	"errors"
+	"fmt"
+	"slices"
+	"strings"
+
+	"github.com/JoshPattman/react"
+	"github.com/mark3labs/mcp-go/client"
+	"github.com/mark3labs/mcp-go/client/transport"
+	"github.com/mark3labs/mcp-go/mcp"
+)
+
+func connectMCP(addr string, customHeaders map[string]string) (*client.Client, error) {
+	httpTransport, err := transport.NewStreamableHTTP(
+		addr,
+		transport.WithHTTPHeaders(customHeaders),
+	)
+	if err != nil {
+		return nil, err
+	}
+	c := client.NewClient(httpTransport)
+
+	initRequest := mcp.InitializeRequest{}
+	initRequest.Params.ProtocolVersion = mcp.LATEST_PROTOCOL_VERSION
+	initRequest.Params.ClientInfo = mcp.Implementation{
+		Name:    "MCP-Agent",
+		Version: "1.0.0",
+	}
+	initRequest.Params.Capabilities = mcp.ClientCapabilities{}
+
+	_, err = c.Initialize(context.Background(), initRequest)
+	if err != nil {
+		return nil, err
+	}
+	return c, nil
+}
+
+func createToolsFromMCP(client *client.Client) ([]react.Tool, error) {
+	ctx := context.Background()
+	result, err := client.ListTools(ctx, mcp.ListToolsRequest{})
+	if err != nil {
+		return nil, err
+	}
+	tools := make([]react.Tool, len(result.Tools))
+	for i, mcpTool := range result.Tools {
+		agentTool, err := createTool(client, mcpTool)
+		if err != nil {
+			return nil, err
+		}
+		tools[i] = agentTool
+	}
+	return tools, nil
+}
+
+func createTool(client *client.Client, tool mcp.Tool) (react.Tool, error) {
+	return &mcpTool{client, tool}, nil
+}
+
+type mcpTool struct {
+	client *client.Client
+	tool   mcp.Tool
+}
+
+// Call implements agent.Tool.
+func (m *mcpTool) Call(args map[string]any) (string, error) {
+	res, err := m.client.CallTool(context.Background(), mcp.CallToolRequest{
+		Params: mcp.CallToolParams{
+			Name:      m.tool.Name,
+			Arguments: args,
+		},
+	})
+	if err != nil {
+		return "", err
+	}
+	contents := make([]string, 0)
+	for _, c := range res.Content {
+		if c, ok := c.(mcp.TextContent); ok {
+			contents = append(contents, c.Text)
+		}
+	}
+	if len(contents) == 0 {
+		return "", errors.New("tool returned no content")
+	}
+	return strings.Join(contents, "\n\n\n"), nil
+}
+
+// Description implements agent.Tool.
+func (m *mcpTool) Description() []string {
+	desc := []string{m.tool.Description}
+	for pname, prop := range m.tool.InputSchema.Properties {
+		var required string
+		if slices.Contains(m.tool.InputSchema.Required, pname) {
+			required = " [required]"
+		}
+		desc = append(
+			desc,
+			fmt.Sprintf("Param%s `%s` (%s): %s", required, pname, prop.(map[string]any)["type"].(string), prop.(map[string]any)["description"].(string)),
+		)
+	}
+	return desc
+}
+
+// Name implements agent.Tool.
+func (m *mcpTool) Name() string {
+	return m.tool.Name
+}
