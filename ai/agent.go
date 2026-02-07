@@ -42,12 +42,12 @@ func (ab *AgentBuilder) BuildNew() (*AgentRuntime, error) {
 		return nil, err
 	}
 
-	agent := react.NewCraig(
+	agent := react.New(
 		ab.modelBuilder,
-		react.WithCraigTools(tools.NewTimeTool(), tools.NewReadScratchPadTool(ab.pad), tools.NewRewriteScratchPadTool(ab.pad)),
-		react.WithCraigTools(confTools...),
-		react.WithCraigSkills(skills...),
-		react.WithCraigPersonality(personality),
+		react.WithTools(tools.NewTimeTool(), tools.NewReadScratchPadTool(ab.pad), tools.NewRewriteScratchPadTool(ab.pad)),
+		react.WithTools(confTools...),
+		react.WithSkills(skills...),
+		react.WithPersonality(personality),
 	)
 	return &AgentRuntime{
 		agent: agent,
@@ -57,7 +57,7 @@ func (ab *AgentBuilder) BuildNew() (*AgentRuntime, error) {
 type AgentRuntime struct {
 	lastUserName string
 	lastLocation string
-	agent        react.Agent
+	agent        *react.Agent
 	hasInit      bool
 }
 
